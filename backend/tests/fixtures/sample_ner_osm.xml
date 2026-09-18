@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="RouteIQ-Test-Generator">
+  <!-- Guwahati - Shillong - Silchar Corridor (NH-06) Sample Fixture -->
+  <node id="1001" lat="26.1158" lon="91.8210">
+    <tag k="name" v="Guwahati Khanapara"/>
+    <tag k="place" v="city"/>
+    <tag k="ele" v="55"/>
+  </node>
+  <node id="1002" lat="26.0980" lon="91.8680">
+    <tag k="name" v="Jorabat Junction"/>
+    <tag k="junction" v="yes"/>
+    <tag k="ele" v="75"/>
+  </node>
+  <node id="1003" lat="26.0400" lon="91.8750">
+    <tag k="name" v="Byrnihat"/>
+    <tag k="place" v="town"/>
+    <tag k="ele" v="110"/>
+  </node>
+  <node id="1004" lat="25.9016" lon="91.8797">
+    <tag k="name" v="Nongpoh"/>
+    <tag k="place" v="town"/>
+    <tag k="ele" v="485"/>
+  </node>
+  <node id="1005" lat="25.6660" lon="91.9056">
+    <tag k="name" v="Umiam Lake Viewpoint"/>
+    <tag k="tourism" v="viewpoint"/>
+    <tag k="ele" v="990"/>
+  </node>
+  <node id="1006" lat="25.5788" lon="91.8933">
+    <tag k="name" v="Shillong Center"/>
+    <tag k="place" v="city"/>
+    <tag k="ele" v="1525"/>
+  </node>
+  <node id="1007" lat="25.5760" lon="91.8830">
+    <tag k="name" v="Police Bazar Shillong"/>
+    <tag k="highway" v="bus_stop"/>
+    <tag k="ele" v="1510"/>
+  </node>
+  <node id="1008" lat="25.5450" lon="91.8600">
+    <tag k="name" v="Upper Shillong Viewpoint"/>
+    <tag k="ele" v="1720"/>
+  </node>
+  <node id="1009" lat="25.4496" lon="92.2038">
+    <tag k="name" v="Jowai Highway Stop"/>
+    <tag k="place" v="town"/>
+    <tag k="ele" v="1380"/>
+  </node>
+  <node id="1010" lat="24.8333" lon="92.7789">
+    <tag k="name" v="Silchar Central"/>
+    <tag k="place" v="city"/>
+    <tag k="ele" v="25"/>
+  </node>
+
+  <!-- Way 2001: Guwahati to Nongpoh (NH-06 Trunk) -->
+  <way id="2001">
+    <nd ref="1001"/>
+    <nd ref="1002"/>
+    <nd ref="1003"/>
+    <nd ref="1004"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="name" v="NH 6 (Guwahati - Nongpoh)"/>
+    <tag k="ref" v="NH 6"/>
+    <tag k="maxspeed" v="80 km/h"/>
+    <tag k="lanes" v="4"/>
+  </way>
+
+  <!-- Way 2002: Nongpoh to Shillong (NH-06 Trunk Mountain Climb) -->
+  <way id="2002">
+    <nd ref="1004"/>
+    <nd ref="1005"/>
+    <nd ref="1006"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="name" v="NH 6 (Nongpoh - Shillong Hill Section)"/>
+    <tag k="ref" v="NH 6"/>
+    <tag k="maxspeed" v="60 km/h"/>
+    <tag k="lanes" v="4"/>
+  </way>
+
+  <!-- Way 2003: Shillong Center to Police Bazar (Urban One-Way Primary Street) -->
+  <way id="2003">
+    <nd ref="1006"/>
+    <nd ref="1007"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="GS Road (Police Bazar Approach)"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="maxspeed" v="40 km/h"/>
+  </way>
+
+  <!-- Way 2004: Shillong to Upper Shillong (Secondary Scenic Road) -->
+  <way id="2004">
+    <nd ref="1006"/>
+    <nd ref="1008"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="name" v="Upper Shillong Road"/>
+    <tag k="maxspeed" v="45 km/h"/>
+  </way>
+
+  <!-- Way 2005: Shillong to Jowai and Silchar (NH-06 High Risk Mountain Segment) -->
+  <way id="2005">
+    <nd ref="1006"/>
+    <nd ref="1009"/>
+    <nd ref="1010"/>
+    <tag k="highway" v="trunk"/>
+    <tag k="name" v="NH 6 (Shillong - Jowai - Silchar)"/>
+    <tag k="ref" v="NH 6"/>
+    <tag k="maxspeed" v="50 km/h"/>
+  </way>
+</osm>

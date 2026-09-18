@@ -454,3 +454,167 @@ export async function updateDelivery(id: string, payload: Partial<DeliveryInput>
 export async function deleteDelivery(id: string): Promise<void> {
   await request<void>(`/api/v1/deliveries/${id}`, { method: "DELETE" });
 }
+
+// =============================================================================
+// Phase 3 Types: Road Network Graph & Ingestion
+// =============================================================================
+
+export interface BoundingBox {
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+}
+
+export interface RoadTypeStats {
+  road_type: string;
+  count: number;
+  total_length_km: number;
+}
+
+export interface NetworkStatsResponse {
+  total_nodes: number;
+  total_edges: number;
+  total_length_km: number;
+  weakly_connected_components: number;
+  strongly_connected_components: number;
+  largest_component_nodes: number;
+  largest_component_ratio: number;
+  road_type_distribution: RoadTypeStats[];
+  bounding_box: BoundingBox | null;
+}
+
+export interface NetworkHealthResponse {
+  status: "healthy" | "degraded" | "empty";
+  total_nodes: number;
+  total_edges: number;
+  is_connected: boolean;
+  isolated_nodes: number;
+  dead_ends: number;
+  warnings: string[];
+}
+
+export interface CorridorWaypoint {
+  name: string;
+  latitude: number;
+  longitude: number;
+  state: string;
+  elevation_m?: number | null;
+}
+
+export interface CorridorResponse {
+  id: string;
+  name: string;
+  national_highway: string;
+  states_covered: string[];
+  start_point: string;
+  end_point: string;
+  intermediate_waypoints: CorridorWaypoint[];
+  approximate_length_km: number;
+  terrain_type: string;
+  strategic_notes: string;
+}
+
+export interface CorridorListResponse {
+  total: number;
+  corridors: CorridorResponse[];
+}
+
+export interface RoadNode {
+  id: string;
+  osm_id?: number | null;
+  latitude: number;
+  longitude: number;
+  elevation_m?: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface RoadNodeListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  nodes: RoadNode[];
+}
+
+export interface RoadEdge {
+  id: string;
+  osm_way_id?: number | null;
+  source_node_id: string;
+  target_node_id: string;
+  road_name?: string | null;
+  road_type: string;
+  length_meters: number;
+  max_speed_kph?: number | null;
+  oneway: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface RoadEdgeListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  edges: RoadEdge[];
+}
+
+// =============================================================================
+// Road Network API
+// =============================================================================
+
+export async function getRoadNetworkStats(): Promise<NetworkStatsResponse> {
+  return request<NetworkStatsResponse>("/api/v1/road-network/stats", { method: "GET" });
+}
+
+export async function getRoadNetworkHealth(): Promise<NetworkHealthResponse> {
+  return request<NetworkHealthResponse>("/api/v1/road-network/health", { method: "GET" });
+}
+
+export async function listCorridors(): Promise<CorridorListResponse> {
+  return request<CorridorListResponse>("/api/v1/road-network/corridors", { method: "GET" });
+}
+
+export async function getCorridor(id: string): Promise<CorridorResponse> {
+  return request<CorridorResponse>(`/api/v1/road-network/corridors/${id}`, { method: "GET" });
+}
+
+export async function listRoadNodes(params?: {
+  min_lat?: number;
+  max_lat?: number;
+  min_lon?: number;
+  max_lon?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<RoadNodeListResponse> {
+  const query = new URLSearchParams();
+  if (params?.min_lat !== undefined) query.set("min_lat", String(params.min_lat));
+  if (params?.max_lat !== undefined) query.set("max_lat", String(params.max_lat));
+  if (params?.min_lon !== undefined) query.set("min_lon", String(params.min_lon));
+  if (params?.max_lon !== undefined) query.set("max_lon", String(params.max_lon));
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  return request<RoadNodeListResponse>(`/api/v1/road-network/nodes${queryString}`, { method: "GET" });
+}
+
+export async function listRoadEdges(params?: {
+  road_type?: string;
+  min_lat?: number;
+  max_lat?: number;
+  min_lon?: number;
+  max_lon?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<RoadEdgeListResponse> {
+  const query = new URLSearchParams();
+  if (params?.road_type !== undefined) query.set("road_type", params.road_type);
+  if (params?.min_lat !== undefined) query.set("min_lat", String(params.min_lat));
+  if (params?.max_lat !== undefined) query.set("max_lat", String(params.max_lat));
+  if (params?.min_lon !== undefined) query.set("min_lon", String(params.min_lon));
+  if (params?.max_lon !== undefined) query.set("max_lon", String(params.max_lon));
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  return request<RoadEdgeListResponse>(`/api/v1/road-network/edges${queryString}`, { method: "GET" });
+}
+

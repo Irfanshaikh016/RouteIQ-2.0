@@ -5,7 +5,7 @@ Guarantees tenant isolation: Every query for logistics data enforces organizatio
 """
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger("routeiq.store")
@@ -23,6 +23,10 @@ class DataStore:
         self.vehicles: Dict[str, Dict[str, Any]] = {}
         self.locations: Dict[str, Dict[str, Any]] = {}
         self.deliveries: Dict[str, Dict[str, Any]] = {}
+        # Phase 3 Road Network (Shared regional infrastructure)
+        self.road_nodes: Dict[str, Dict[str, Any]] = {}
+        self.osm_node_map: Dict[int, str] = {}
+        self.road_edges: Dict[str, Dict[str, Any]] = {}
 
     def clear(self):
         """Clears all in-memory entities. Useful for test isolation."""
@@ -31,6 +35,9 @@ class DataStore:
         self.vehicles.clear()
         self.locations.clear()
         self.deliveries.clear()
+        self.road_nodes.clear()
+        self.osm_node_map.clear()
+        self.road_edges.clear()
 
     # --------------------------------------------------------------------------
     # Organizations
@@ -422,6 +429,178 @@ class DataStore:
             return False
         del self.deliveries[delivery_id]
         return True
+
+    # --------------------------------------------------------------------------
+    # Road Network (Phase 3 - Shared Physical Regional Infrastructure)
+    # --------------------------------------------------------------------------
+    def create_road_node(
+        self,
+        latitude: float,
+        longitude: float,
+        osm_id: Optional[int] = None,
+        elevation_m: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if osm_id is not None and osm_id in self.osm_node_map:
+            return self.road_nodes[self.osm_node_map[osm_id]]
+
+        node_id = str(uuid.uuid4())
+        node = {
+            "id": node_id,
+            "osm_id": osm_id,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "elevation_m": float(elevation_m) if elevation_m is not None else None,
+            "metadata": metadata or {},
+            "created_at": datetime.now(timezone.utc),
+        }
+        self.road_nodes[node_id] = node
+        if osm_id is not None:
+            self.osm_node_map[osm_id] = node_id
+        return node
+
+    def get_road_node(self, node_id: str) -> Optional[Dict[str, Any]]:
+        return self.road_nodes.get(node_id)
+
+    def get_road_node_by_osm_id(self, osm_id: int) -> Optional[Dict[str, Any]]:
+        node_id = self.osm_node_map.get(osm_id)
+        return self.road_nodes.get(node_id) if node_id else None
+
+    def list_road_nodes(
+        self,
+        min_lat: Optional[float] = None,
+        max_lat: Optional[float] = None,
+        min_lon: Optional[float] = None,
+        max_lon: Optional[float] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        nodes = list(self.road_nodes.values())
+        if min_lat is not None:
+            nodes = [n for n in nodes if n["latitude"] >= min_lat]
+        if max_lat is not None:
+            nodes = [n for n in nodes if n["latitude"] <= max_lat]
+        if min_lon is not None:
+            nodes = [n for n in nodes if n["longitude"] >= min_lon]
+        if max_lon is not None:
+            nodes = [n for n in nodes if n["longitude"] <= max_lon]
+
+        total = len(nodes)
+        paged = nodes[offset : offset + limit]
+        return paged, total
+
+    def create_road_edge(
+        self,
+        source_node_id: str,
+        target_node_id: str,
+        road_type: str,
+        length_meters: float,
+        road_name: Optional[str] = None,
+        max_speed_kph: Optional[float] = None,
+        oneway: bool = False,
+        osm_way_id: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if source_node_id not in self.road_nodes or target_node_id not in self.road_nodes:
+            raise ValueError("Both source and target road nodes must exist in the database")
+
+        edge_id = str(uuid.uuid4())
+        edge = {
+            "id": edge_id,
+            "osm_way_id": osm_way_id,
+            "source_node_id": source_node_id,
+            "target_node_id": target_node_id,
+            "road_name": road_name,
+            "road_type": road_type,
+            "length_meters": float(length_meters),
+            "max_speed_kph": float(max_speed_kph) if max_speed_kph is not None else None,
+            "oneway": oneway,
+            "metadata": metadata or {},
+            "created_at": datetime.now(timezone.utc),
+        }
+        self.road_edges[edge_id] = edge
+        return edge
+
+    def get_road_edge(self, edge_id: str) -> Optional[Dict[str, Any]]:
+        return self.road_edges.get(edge_id)
+
+    def list_road_edges(
+        self,
+        road_type: Optional[str] = None,
+        min_lat: Optional[float] = None,
+        max_lat: Optional[float] = None,
+        min_lon: Optional[float] = None,
+        max_lon: Optional[float] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        edges = list(self.road_edges.values())
+        if road_type is not None:
+            edges = [e for e in edges if e["road_type"].lower() == road_type.lower()]
+
+        if any(coord is not None for coord in (min_lat, max_lat, min_lon, max_lon)):
+            filtered = []
+            for e in edges:
+                src = self.road_nodes.get(e["source_node_id"])
+                tgt = self.road_nodes.get(e["target_node_id"])
+                if not src or not tgt:
+                    continue
+                # include edge if either endpoint is in the bounding box
+                for pt in (src, tgt):
+                    in_box = True
+                    if min_lat is not None and pt["latitude"] < min_lat:
+                        in_box = False
+                    if max_lat is not None and pt["latitude"] > max_lat:
+                        in_box = False
+                    if min_lon is not None and pt["longitude"] < min_lon:
+                        in_box = False
+                    if max_lon is not None and pt["longitude"] > max_lon:
+                        in_box = False
+                    if in_box:
+                        filtered.append(e)
+                        break
+            edges = filtered
+
+        total = len(edges)
+        paged = edges[offset : offset + limit]
+        return paged, total
+
+    def bulk_insert_road_network(
+        self,
+        nodes: List[Dict[str, Any]],
+        edges: List[Dict[str, Any]],
+    ) -> Tuple[int, int]:
+        """High-efficiency batch ingestion of nodes and edges."""
+        inserted_nodes = 0
+        for n in nodes:
+            osm_id = n.get("osm_id")
+            if osm_id is not None and osm_id in self.osm_node_map:
+                continue
+            nid = n.get("id") or str(uuid.uuid4())
+            n["id"] = nid
+            if "created_at" not in n:
+                n["created_at"] = datetime.now(timezone.utc)
+            self.road_nodes[nid] = n
+            if osm_id is not None:
+                self.osm_node_map[osm_id] = nid
+            inserted_nodes += 1
+
+        inserted_edges = 0
+        for e in edges:
+            eid = e.get("id") or str(uuid.uuid4())
+            e["id"] = eid
+            if "created_at" not in e:
+                e["created_at"] = datetime.now(timezone.utc)
+            self.road_edges[eid] = e
+            inserted_edges += 1
+
+        return inserted_nodes, inserted_edges
+
+    def get_all_road_nodes(self) -> List[Dict[str, Any]]:
+        return list(self.road_nodes.values())
+
+    def get_all_road_edges(self) -> List[Dict[str, Any]]:
+        return list(self.road_edges.values())
 
 
 # Global singleton instance

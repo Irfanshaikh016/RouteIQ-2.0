@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     health,
     locations,
     organizations,
+    road_network,
     users,
     vehicles,
 )
@@ -25,3 +26,7 @@ api_router.include_router(organizations.router, prefix="/organizations", tags=["
 api_router.include_router(vehicles.router, prefix="/vehicles", tags=["Vehicles"])
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 api_router.include_router(deliveries.router, prefix="/deliveries", tags=["Deliveries"])
+
+# Phase 3 — Road Network Graph & Ingestion (Physical Regional Infrastructure)
+api_router.include_router(road_network.router, prefix="/road-network", tags=["Road Network"])
+
