@@ -53,15 +53,28 @@
 
 ---
 
-## Upcoming Phases
+### Phase 4: Multi-Objective Routing Optimization [COMPLETED & VERIFIED]
+- [x] Modular routing subsystem (`backend/app/routing/`)
+- [x] Centralized routing profiles (`fastest`, `safest`, `balanced`) with normalized objective weights
+- [x] Multi-criteria edge cost evaluation with OSM highway classification speed fallbacks
+- [x] Deterministic hazard risk framework (`HazardProvider`, `StaticHazardProvider`) scoring floodplains, landslide slope gradients, monsoon surface degradation, and terrain elevation deltas
+- [x] Thread-safe NetworkX pathfinding (`dijkstra_path` with dynamic weight functions) without in-place graph mutation
+- [x] Spatial nearest road node resolver with bounding-box optimization and distance thresholding
+- [x] Route reconstruction with ordered nodes, edges, summary metrics, and GeoJSON `LineString` (`[longitude, latitude]`)
+- [x] Route comparison engine (`POST /api/v1/routing/compare`) evaluating all 3 profiles without ranking or winner bias
+- [x] REST endpoints (`/api/v1/routing/route`, `/profiles`, `/health`, `/compare`) with typed error handling
+- [x] Frontend TypeScript interfaces and API methods in `frontend/src/lib/api.ts`
+- [x] Pytest suite with 14 new routing tests (44/44 total backend tests passing)
+- [x] Next.js 16 production build verified (10/10 static pages)
+- [x] Phase 4 documentation (`PHASE_4.md`, `ROUTING_PROFILES.md`, `COST_AND_RISK_MODELS.md`, `ROUTING_API.md`, `PHASE_4_COMPLETION_REPORT.md`)
 
-### Phase 4: Multi-Objective Routing Optimization (Planned)
-- Multi-criteria routing algorithms (Fastest, Safest, Balanced)
-- Monsoon vulnerability and landslide hazard penalties
-- Turn-by-turn waypoint generation
-- Google OR-Tools / VRP solver integration
+---
+
+## Upcoming Phases
 
 ### Phase 5: Interactive GIS Dashboard & Operations Console (Planned)
 - Map visualizer (Mapbox/Leaflet)
 - Corridor hazard overlays and live operational dispatch
+- Interactive route inspection and multi-profile trajectory visualization
+
 

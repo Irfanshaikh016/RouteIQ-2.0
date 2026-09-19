@@ -116,3 +116,54 @@ Phase 3 Task Checklist: [ALL DONE & VERIFIED]
   - Next.js 16 production build compiled 10/10 static pages cleanly.
   - Full documentation suite generated.
 
+================================================================================
+Phase 4 Task Checklist: [ALL DONE & VERIFIED]
+================================================================================
+
+[DONE] Modular Routing Subsystem
+  - Created backend/app/routing/ package.
+  - exceptions.py: Typed routing errors (InvalidCoordinateError, UnsupportedProfileError, NearestNodeNotFoundError, NoRouteFoundError, GraphUnavailableError).
+  - schemas.py: Pydantic request/response models with GeoJSON LineString formatting.
+  - validators.py: Geographic coordinate bounds and profile validation.
+
+[DONE] Centralized Routing Profiles
+  - Defined profiles in backend/app/routing/profiles.py.
+  - fastest: Time weight 0.60, distance 0.20, risk 0.10, terrain 0.10.
+  - safest: Risk weight 0.50, terrain 0.30, time 0.10, distance 0.10.
+  - balanced: Time weight 0.35, distance 0.25, risk 0.25, terrain 0.15.
+  - Normalized weights summing to 1.0.
+
+[DONE] Multi-Criteria Cost & Speed Fallbacks
+  - Built backend/app/routing/cost_model.py.
+  - Regional speed fallbacks by OSM road classification.
+  - Normalized dimensionless distance, time, risk, and terrain components.
+
+[DONE] Deterministic Hazard Risk Framework
+  - Built backend/app/routing/risk_model.py with HazardProvider abstract interface.
+  - StaticHazardProvider baseline evaluating floodplains, landslide slope gradients, monsoon surface degradation, and terrain elevation deltas.
+
+[DONE] NetworkX Pathfinding & Nearest-Node Resolution
+  - pathfinder.py: Dijkstra shortest path with dynamic weight function (zero graph mutation).
+  - route_service.py: High-performance nearest-node resolver with bounding-box optimization.
+  - Respects oneway constraints and edge directionality.
+
+[DONE] Multi-Profile Route Optimizer
+  - optimizer.py: Evaluates fastest, safest, and balanced routes side-by-side without ranking or winner bias.
+
+[DONE] Routing REST APIs
+  - POST /api/v1/routing/route: Multi-objective route calculation.
+  - GET /api/v1/routing/profiles: Profile catalog and weights.
+  - GET /api/v1/routing/health: Readiness and graph diagnostics.
+  - POST /api/v1/routing/compare: 3-profile comparison without ranking bias.
+  - Mounted under /api/v1/routing in backend/app/api/v1/router.py.
+
+[DONE] Frontend Integration
+  - Added Phase 4 TypeScript interfaces and API methods in frontend/src/lib/api.ts.
+
+[DONE] Verification & Quality Gates
+  - 44/44 backend pytest tests passing (100% pass rate).
+  - Next.js 16 production build compiled 10/10 static pages cleanly.
+  - Zero TypeScript errors.
+  - Comprehensive documentation generated.
+
+

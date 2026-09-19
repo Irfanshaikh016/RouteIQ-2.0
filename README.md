@@ -60,6 +60,17 @@ graph TD
 - [x] **Render Cloud Deployment**: Declarative service blueprint `render.yaml`.
 - [x] **Automated Test Suite**: 30/30 backend tests passing (100% pass rate).
 
+## ⚡ Phase 4 Multi-Objective Routing Optimization (Completed)
+- [x] **Modular Routing Subsystem**: `backend/app/routing/` providing cost models, risk heuristics, speed fallbacks, and NetworkX pathfinding.
+- [x] **Centralized Routing Profiles**: `fastest`, `safest`, and `balanced` with normalized multi-criteria objective weights.
+- [x] **Normalized Edge Cost Formulation**: Multi-objective impedance combining distance, transit time, terrain difficulty, and monsoon hazard penalties.
+- [x] **Deterministic Hazard Framework**: Modular `HazardProvider` evaluating floodplains, landslide slope gradients, monsoon surface degradation, and terrain elevation deltas.
+- [x] **Thread-Safe Graph Pathfinding**: Dijkstra shortest path with dynamic weight functions without mutating shared graph state.
+- [x] **Spatial Nearest-Node Resolution**: High-performance coordinate snapping with bounding-box optimization.
+- [x] **Multi-Profile Comparison Engine**: Side-by-side evaluation of fastest, safest, and balanced routes without ranking or winner bias.
+- [x] **Routing REST Endpoints**: `/api/v1/routing/route`, `/profiles`, `/health`, and `/compare`.
+- [x] **Automated Test Suite**: 44/44 backend tests passing (100% pass rate).
+
 ---
 
 ## 📁 Repository Structure
@@ -69,20 +80,22 @@ RouteIQ-2.0/
 ├── .planning/               # GSD roadmaps, requirements, and phase plans
 ├── backend/                 # FastAPI Python backend service
 │   ├── app/
-│   │   ├── api/v1/          # Versioned API endpoints (auth, logistics, road-network)
+│   │   ├── api/v1/          # Versioned API endpoints (auth, logistics, road-network, routing)
 │   │   ├── core/            # Pydantic Settings, JWT security & dependencies
 │   │   ├── db/              # Modular database session & health checks
 │   │   ├── graph/           # NetworkX graph manager, OSM parser, corridors, validation
 │   │   ├── repositories/    # Multi-tenant data store & road network repository
+│   │   ├── routing/         # Multi-objective routing engine, profiles, cost & risk models
 │   │   ├── schemas/         # Pydantic validation schemas
 │   │   └── main.py          # FastAPI application entrypoint
-│   ├── tests/               # Pytest automated test suite (30/30 passing)
+│   ├── tests/               # Pytest automated test suite (44/44 passing)
 │   │   └── fixtures/        # Sample NER OSM XML test fixture
 │   ├── requirements.txt     # Backend dependencies
 │   └── .env.example         # Backend environment template
 ├── database/                # Database schemas and migrations
 │   ├── migrations/          # Versioned SQL migrations (001, 002, 003)
 │   ├── migrate.py           # Database migration runner script
+
 │   └── schema.sql           # Canonical PostgreSQL / PostGIS schema
 ├── docs/                    # Complete system documentation suite
 ├── frontend/                # Next.js 16 TypeScript frontend console

@@ -618,3 +618,143 @@ export async function listRoadEdges(params?: {
   return request<RoadEdgeListResponse>(`/api/v1/road-network/edges${queryString}`, { method: "GET" });
 }
 
+// =============================================================================
+// Phase 4 Types: Multi-Objective Routing Optimization
+// =============================================================================
+
+export interface Coordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RouteRequest {
+  origin: Coordinate;
+  destination: Coordinate;
+  profile?: "fastest" | "safest" | "balanced" | string;
+  max_nearest_distance_km?: number;
+}
+
+export interface RouteCostBreakdown {
+  distance_cost: number;
+  time_cost: number;
+  risk_cost: number;
+  terrain_cost: number;
+  total_cost: number;
+}
+
+export interface RouteRiskBreakdown {
+  flood_risk: number;
+  landslide_risk: number;
+  monsoon_risk: number;
+  terrain_risk: number;
+  surface_risk: number;
+  overall_risk: number;
+}
+
+export interface RouteNodeItem {
+  sequence: number;
+  node_id: string;
+  osm_id?: number | null;
+  latitude: number;
+  longitude: number;
+  elevation_m?: number | null;
+}
+
+export interface RouteEdgeItem {
+  sequence: number;
+  edge_id: string;
+  osm_way_id?: number | null;
+  source_node_id: string;
+  target_node_id: string;
+  road_name?: string | null;
+  road_type: string;
+  length_meters: number;
+  estimated_time_seconds: number;
+  cost_breakdown: RouteCostBreakdown;
+  risk_breakdown: RouteRiskBreakdown;
+}
+
+export interface RouteMetrics {
+  distance_km: number;
+  estimated_time_minutes: number;
+  objective_score: number;
+  risk_score: number;
+  terrain_score: number;
+}
+
+export interface GeoJSONLineString {
+  type: "LineString";
+  coordinates: [number, number][]; // [longitude, latitude]
+}
+
+export interface RouteProfileInfo {
+  name: string;
+  description: string;
+  weights: {
+    distance_weight: number;
+    time_weight: number;
+    risk_weight: number;
+    terrain_weight: number;
+  };
+  trade_offs: string;
+}
+
+export interface RouteResponse {
+  route_id: string;
+  profile: string;
+  origin: Coordinate;
+  destination: Coordinate;
+  metrics: RouteMetrics;
+  nodes: RouteNodeItem[];
+  edges: RouteEdgeItem[];
+  geometry: GeoJSONLineString;
+  optimization_metadata: Record<string, unknown>;
+}
+
+export interface RoutingProfilesResponse {
+  total: number;
+  profiles: RouteProfileInfo[];
+}
+
+export interface RoutingHealthResponse {
+  status: "healthy" | "degraded" | "empty";
+  engine_version: string;
+  graph_available: boolean;
+  total_nodes: number;
+  total_edges: number;
+  profiles_loaded: string[];
+}
+
+export interface RouteComparisonResponse {
+  origin: Coordinate;
+  destination: Coordinate;
+  routes: RouteResponse[];
+}
+
+// =============================================================================
+// Routing API Functions
+// =============================================================================
+
+export async function calculateRoute(payload: RouteRequest): Promise<RouteResponse> {
+  return request<RouteResponse>("/api/v1/routing/route", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function compareRoutes(payload: RouteRequest): Promise<RouteComparisonResponse> {
+  return request<RouteComparisonResponse>("/api/v1/routing/compare", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getRoutingProfiles(): Promise<RoutingProfilesResponse> {
+  return request<RoutingProfilesResponse>("/api/v1/routing/profiles", { method: "GET" });
+}
+
+export async function getRoutingHealth(): Promise<RoutingHealthResponse> {
+  return request<RoutingHealthResponse>("/api/v1/routing/health", { method: "GET" });
+}
+
+
