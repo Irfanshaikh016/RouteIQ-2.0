@@ -71,6 +71,16 @@ graph TD
 - [x] **Routing REST Endpoints**: `/api/v1/routing/route`, `/profiles`, `/health`, and `/compare`.
 - [x] **Automated Test Suite**: 44/44 backend tests passing (100% pass rate).
 
+## 🗺️ Phase 5 Interactive GIS Dashboard & Operations Console (Completed)
+- [x] **Client-Side Leaflet Engine**: High-performance interactive cartography with CartoDB Dark Matter basemap tiles (SSR-safe via `next/dynamic`).
+- [x] **8-Layer GIS Operations**: Toggleable overlays for OSM Road Networks, 7 Strategic NER Corridors, Active Route, Alternate Profiles, Fleet Vehicles, Facilities, Consignments, and Modeled Risk.
+- [x] **Interactive Route Planner**: Coordinate inputs, 10 NER regional presets, profile pickers, and single/multi-profile calculation triggers.
+- [x] **Neutral Multi-Profile Comparison**: Objective side-by-side metric tables (distance, duration, objective, risk, terrain) with zero algorithmic ranking bias.
+- [x] **Segment-by-Segment Explainability**: Granular cost factor breakdown and 5-factor modeled hazard score inspection for every traversed road link.
+- [x] **Strategic Corridor Explorer**: Interactive modal detailing lifeline highway waypoints, elevations ASL, and direct routing endpoints.
+- [x] **Tenant-Isolated Asset Mapping**: Vehicles, locations, and delivery consignments strictly isolated to the authenticated organization.
+- [x] **Automated Test Suite**: 47/47 backend tests passing (including full GIS operations console integration suite).
+
 ---
 
 ## 📁 Repository Structure
@@ -88,17 +98,18 @@ RouteIQ-2.0/
 │   │   ├── routing/         # Multi-objective routing engine, profiles, cost & risk models
 │   │   ├── schemas/         # Pydantic validation schemas
 │   │   └── main.py          # FastAPI application entrypoint
-│   ├── tests/               # Pytest automated test suite (44/44 passing)
-│   │   └── fixtures/        # Sample NER OSM XML test fixture
+│   ├── tests/               # Pytest automated test suite (47/47 passing)
+│   │   ├── fixtures/        # Sample NER OSM XML test fixture
+│   │   └── test_gis_integration.py # Phase 5 GIS integration tests
 │   ├── requirements.txt     # Backend dependencies
 │   └── .env.example         # Backend environment template
 ├── database/                # Database schemas and migrations
 │   ├── migrations/          # Versioned SQL migrations (001, 002, 003)
 │   ├── migrate.py           # Database migration runner script
-
 │   └── schema.sql           # Canonical PostgreSQL / PostGIS schema
 ├── docs/                    # Complete system documentation suite
 ├── frontend/                # Next.js 16 TypeScript frontend console
+│   └── src/components/map/  # Leaflet map, layers, controls, legend, inspector, modal
 ├── render.yaml              # Render cloud infrastructure blueprint
 └── README.md
 ```
@@ -151,13 +162,14 @@ cd frontend && npm run build
 
 ## 🗺️ Progressive Roadmap
 
-| Phase | Milestone | Focus |
-|---|---|---|
-| **Phase 1** | **Project Foundation** | Full-stack scaffolding, `/health` endpoint, DB connectivity, automated test suite, and docs. |
-| **Phase 2** | **Road Network Graph & Ingestion** | PostGIS node/edge schema, OSM ingestion, NetworkX graph representation of NER corridors. |
-| **Phase 3** | **Risk Assessment & Hazard Engine** | Rainfall and landslide vulnerability index, dynamic edge weight computation. |
-| **Phase 4** | **Multi-Objective Routing Engine** | Multi-criteria graph algorithms (Fastest, Safest, Balanced routes). |
-| **Phase 5** | **Interactive GIS Dashboard** | Live map visualization, corridor hazard overlays, and fleet dispatch console. |
+| Phase | Milestone | Status | Focus |
+|---|---|---|---|
+| **Phase 1** | **Project Foundation** | Completed | Full-stack scaffolding, `/health` endpoint, DB connectivity, automated test suite, and docs. |
+| **Phase 2** | **Auth & Core Logistics Data** | Completed | JWT, RBAC, tenant isolation, vehicles, locations, deliveries, automated security tests. |
+| **Phase 3** | **Road Network Graph & Ingestion** | Completed | PostGIS spatial schema, 7 NER corridors, OSM ingestion engine, NetworkX graph layer. |
+| **Phase 4** | **Multi-Objective Routing Engine** | Completed | Multi-criteria cost and risk heuristics, pathfinder, 3 profiles, side-by-side comparison. |
+| **Phase 5** | **Interactive GIS Operations Console** | Completed | Leaflet cartography, 8 GIS layers, route planner, neutral compare, segment explainability. |
+| **Phase 6** | **Live Telemetry & Fleet Optimization** | Future | Real-time GPS feeds, dynamic weather sensors, OR-Tools multi-vehicle routing (CVRP). |
 
 ---
 

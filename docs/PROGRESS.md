@@ -70,11 +70,28 @@
 
 ---
 
+### Phase 5: Interactive GIS Dashboard & Operations Console [COMPLETED & VERIFIED]
+- [x] Client-side Leaflet GIS mapping with CartoDB Dark Matter tiles (SSR-safe via `next/dynamic`)
+- [x] 8 toggleable GIS layers (Road Network, Strategic Corridors, Selected Route, Alternate Profiles, Fleet Vehicles, Facilities, Consignments, Modeled Risk Overlay)
+- [x] Floating map controls (zoom, reset to NER view, layer toggle dropdown, symbology legend)
+- [x] Route planner with coordinate inputs and 10 regional NER hub presets (Guwahati, Shillong, Silchar, Dimapur, Kohima, Imphal, Agartala, Aizawl, Itanagar, Gangtok)
+- [x] Real-time route optimization execution with multi-profile comparison (`fastest`, `safest`, `balanced`)
+- [x] Neutral side-by-side multi-profile comparison table with zero algorithmic ranking bias
+- [x] Segment-by-segment explainability inspector displaying cost factors and 5-factor modeled hazard scores
+- [x] Interactive Strategic Corridor modal detailing waypoints, elevations ASL, and direct routing endpoints
+- [x] Multi-tenant isolation preserved across all map asset layers (vehicles, locations, deliveries scoped to user organization)
+- [x] Full test suite (47/47 backend tests passing, including new GIS integration tests)
+- [x] Next.js 16 production build verified (10/10 static pages)
+- [x] Comprehensive documentation (`PHASE_5.md`, `GIS_DASHBOARD.md`, `MAP_ARCHITECTURE.md`, `OPERATIONS_CONSOLE.md`, `ROUTE_VISUALIZATION.md`, `PHASE_5_DEPLOYMENT.md`, `PHASE_5_COMPLETION_REPORT.md`)
+
+---
+
 ## Upcoming Phases
 
-### Phase 5: Interactive GIS Dashboard & Operations Console (Planned)
-- Map visualizer (Mapbox/Leaflet)
-- Corridor hazard overlays and live operational dispatch
-- Interactive route inspection and multi-profile trajectory visualization
+### Phase 6: Live Telemetry, Dynamic Weather & OR-Tools Fleet Optimization (Future)
+- Live GPS vehicle telemetry streaming
+- Real-time weather and landslide sensor integration
+- Multi-vehicle Capacitated Vehicle Routing Problem (CVRP / VRP-TW) using Google OR-Tools
+
 
 

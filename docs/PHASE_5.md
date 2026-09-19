@@ -1,0 +1,95 @@
+# RouteIQ 2.0 — Phase 5: Interactive GIS Dashboard & Operations Console
+
+## 1. Executive Summary
+
+Phase 5 transforms the RouteIQ 2.0 platform from a backend routing service into a comprehensive, production-grade **GIS-Based Logistics Intelligence Operations Console**.
+
+Designed specifically for the extreme topography and severe infrastructure constraints of India's North Eastern Region (NER), the operations console integrates:
+- Client-side Leaflet GIS mapping with CartoDB Dark Matter cartography
+- 8 toggleable GIS layers covering OSM road networks, strategic NER corridors, tenant fleet assets, and modeled hazard overlays
+- Multi-profile route planning and side-by-side neutral comparison (`fastest`, `safest`, `balanced`)
+- Segment-by-segment explainability inspector detailing distance, travel time, risk, and terrain cost breakdowns
+- Strict preservation of Phase 2 multi-tenant isolation
+
+---
+
+## 2. Architecture Overview
+
+```
+                                  +---------------------------------------+
+                                  |         Next.js 16 Client UI          |
+                                  |     (Turbopack, React 19, Tailwind)   |
+                                  +-------------------+-------------------+
+                                                      |
+                         +----------------------------+----------------------------+
+                         |                                                         |
+                         v                                                         v
+             +-----------------------+                                 +-----------------------+
+             |   Operations Console  |                                 |    MapWrapper (SSR:0) |
+             |       Dashboard       |                                 |    Leaflet Engine     |
+             +-----------+-----------+                                 +-----------+-----------+
+                         |                                                         |
+         +---------------+---------------+                         +---------------+---------------+
+         |               |               |                         |               |               |
+         v               v               v                         v               v               v
+  +--------------+ +-----------+ +---------------+          +--------------+ +-----------+ +---------------+
+  | RoutePlanner | |  Metrics  | |   Segment     |          |  CartoDB DM  | |  8 Layer  | |  Symbology    |
+  |   Sidebar    | |   Panel   | |  Inspector    |          |  Dark Tiles  | |  Toggles  | |    Legend     |
+  +--------------+ +-----------+ +---------------+          +--------------+ +-----------+ +---------------+
+                         |                                                         |
+                         +----------------------------+----------------------------+
+                                                      |
+                                                      v
+                                      +-------------------------------+
+                                      |  Centralized API Client       |
+                                      |   (frontend/src/lib/api.ts)   |
+                                      +---------------+---------------+
+                                                      |  JWT Bearer / Org Context
+                                                      v
+                                      +-------------------------------+
+                                      |    FastAPI Backend Engine     |
+                                      |   (/routing, /road-network,   |
+                                      |    /vehicles, /locations,     |
+                                      |    /deliveries)               |
+                                      +-------------------------------+
+```
+
+---
+
+## 3. Core Capabilities Delivered
+
+### 3.1 Interactive Leaflet GIS Engine
+- **Zero Mapbox Dependency**: Built entirely on open Leaflet (`leaflet`, `@types/leaflet`) and OpenStreetMap/CartoDB Dark Matter tile basemaps with proper attribution.
+- **SSR Safety**: Wrapped in `next/dynamic` with `ssr: false` to eliminate React SSR `window`/`document` reference errors.
+- **NER Centered**: Default geographic viewport centered at `[25.8°N, 92.5°E]`, zoom level 7, with pan/zoom bounds tailored to Northeast India.
+
+### 3.2 8-Layer GIS Management
+1. **Road Network (OSM)**: OpenStreetMap highway segments color-coded by classification (trunk: `#3b82f6`, primary: `#06b6d4`, secondary: `#8b5cf6`, tertiary: `#64748b`).
+2. **Strategic NER Corridors**: The 7 lifeline corridors (NH-06, NH-27, NH-29/02, NH-08, NH-306, NH-15/415, NH-10) with interactive waypoint markers and elevation badges.
+3. **Selected Route**: Active route geometry rendered as an illuminated GeoJSON `LineString` with start/end pinpoints.
+4. **Alternate Profiles**: Distinct dashed trajectories generated by `/compare` for simultaneous multi-profile visual evaluation.
+5. **Fleet Vehicles**: Real-time vehicle inventory scoped to the user's organization with status and capacity tags.
+6. **Logistics Facilities**: Tenant depots, hubs, and warehouses with storage and address popups.
+7. **Consignment Deliveries**: Origin-to-destination connection vectors for active orders.
+8. **Modeled Risk Overlay**: Color-coded risk heat segments ($<0.25$ green, $0.25-0.50$ amber, $>0.50$ red) representing heuristic penalty calculations.
+
+### 3.3 Multi-Objective Routing & Comparison
+- **10 Regional Hub Presets**: Quick-select coordinates for key logistics centers across Assam, Meghalaya, Nagaland, Manipur, Tripura, Mizoram, Arunachal Pradesh, and Sikkim.
+- **3 Optimization Profiles**:
+  - `Fastest`: Prioritizes travel duration and highway velocity.
+  - `Safest`: Minimizes flood, landslide, monsoon, and slope hazards.
+  - `Balanced`: Harmonic equilibrium across distance, duration, risk, and terrain.
+- **Side-by-Side Neutral Comparison**: Zero-bias comparison table presenting raw metrics without subjective winner rankings.
+
+### 3.4 Segment-by-Segment Explainability
+- Edge-by-edge breakdown of costs: distance cost, duration cost, risk penalty, terrain delta.
+- Five-factor risk scoring: flood risk, landslide slope risk, monsoon degradation, terrain roughness, road surface condition.
+- Interactive segment inspection: clicking any segment in the inspector or on the map highlights the corresponding road link.
+
+---
+
+## 4. Verification & Testing
+
+- **Backend Integration Tests**: `backend/tests/test_gis_integration.py` validates aggregated data loading, route generation, multi-profile comparison, and cross-tenant isolation.
+- **Total Backend Tests**: **47/47 passing** across all phases.
+- **Frontend Production Build**: Clean static export of 10/10 Next.js routes with zero TypeScript or lint errors.
