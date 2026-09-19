@@ -757,4 +757,362 @@ export async function getRoutingHealth(): Promise<RoutingHealthResponse> {
   return request<RoutingHealthResponse>("/api/v1/routing/health", { method: "GET" });
 }
 
+// =============================================================================
+// Phase 6 Telemetry Types & API
+// =============================================================================
+
+export type TelemetryFreshness = "LIVE" | "STALE" | "OFFLINE";
+
+export interface VehicleTelemetryItem {
+  id?: string;
+  vehicle_id: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading?: number;
+  ignition_status?: boolean;
+  battery_level?: number;
+  source: string;
+  freshness: TelemetryFreshness;
+  timestamp: string;
+}
+
+export interface VehicleStateItem {
+  vehicle_id: string;
+  organization_id: string;
+  vehicle_name: string;
+  vehicle_type: string;
+  registration_number: string;
+  capacity: number;
+  status: string;
+  freshness: TelemetryFreshness;
+  latest_telemetry?: VehicleTelemetryItem | null;
+  last_ping_time?: string | null;
+}
+
+export interface FleetTelemetrySummary {
+  organization_id: string;
+  total_vehicles: number;
+  live_count: number;
+  stale_count: number;
+  offline_count: number;
+  vehicles: VehicleStateItem[];
+  timestamp: string;
+}
+
+export interface TelemetryHealth {
+  status: string;
+  ingestion_available: boolean;
+  total_tracked_vehicles: number;
+  timestamp: string;
+}
+
+export async function getFleetTelemetry(): Promise<FleetTelemetrySummary> {
+  return request<FleetTelemetrySummary>("/api/v1/telemetry/fleet", { method: "GET" });
+}
+
+export async function getVehicleTelemetry(vehicleId: string): Promise<VehicleStateItem> {
+  return request<VehicleStateItem>(`/api/v1/telemetry/vehicles/${vehicleId}`, { method: "GET" });
+}
+
+export async function ingestTelemetry(payload: {
+  vehicle_id: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading?: number;
+  ignition_status?: boolean;
+  battery_level?: number;
+  accuracy?: number;
+  source?: string;
+}): Promise<VehicleTelemetryItem> {
+  return request<VehicleTelemetryItem>("/api/v1/telemetry", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getTelemetryHealth(): Promise<TelemetryHealth> {
+  return request<TelemetryHealth>("/api/v1/telemetry/health", { method: "GET" });
+}
+
+// =============================================================================
+// Phase 6 Weather, Hazards & Restrictions
+// =============================================================================
+
+export interface WeatherObservationItem {
+  id?: string;
+  latitude: number;
+  longitude: number;
+  rainfall_mm: number;
+  temperature_c?: number;
+  wind_speed_kmh?: number;
+  visibility_km?: number;
+  soil_moisture_pct?: number;
+  source: string;
+  observed_at: string;
+}
+
+export interface HazardEventItem {
+  id: string;
+  hazard_type: string;
+  severity: number;
+  latitude: number;
+  longitude: number;
+  radius_meters: number;
+  description?: string;
+  source: string;
+  confidence: number;
+  starts_at: string;
+  expires_at: string;
+  is_active: boolean;
+}
+
+export interface RoadRestrictionItem {
+  id: string;
+  road_edge_id: string;
+  road_name?: string;
+  status: "OPEN" | "SLOW" | "RESTRICTED" | "CLOSED";
+  speed_multiplier: number;
+  reason?: string;
+  starts_at: string;
+  expires_at?: string;
+}
+
+export interface WeatherHealth {
+  status: string;
+  provider: string;
+  provider_reachable: boolean;
+  active_hazards_count: number;
+  active_restrictions_count: number;
+  last_update_timestamp: string;
+}
+
+export async function getWeatherHealth(): Promise<WeatherHealth> {
+  return request<WeatherHealth>("/api/v1/weather/health", { method: "GET" });
+}
+
+export async function getWeatherCurrent(latitude: number, longitude: number): Promise<WeatherObservationItem> {
+  return request<WeatherObservationItem>(`/api/v1/weather/current?latitude=${latitude}&longitude=${longitude}`, { method: "GET" });
+}
+
+export async function getActiveHazards(): Promise<HazardEventItem[]> {
+  return request<HazardEventItem[]>("/api/v1/weather/hazards", { method: "GET" });
+}
+
+export async function createHazard(payload: {
+  hazard_type: string;
+  severity: number;
+  latitude: number;
+  longitude: number;
+  radius_meters?: number;
+  description?: string;
+  source?: string;
+  expires_at: string;
+}): Promise<HazardEventItem> {
+  return request<HazardEventItem>("/api/v1/weather/hazards", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getRoadRestrictions(): Promise<RoadRestrictionItem[]> {
+  return request<RoadRestrictionItem[]>("/api/v1/weather/restrictions", { method: "GET" });
+}
+
+export async function setRoadRestriction(payload: {
+  road_edge_id: string;
+  road_name?: string;
+  status: "OPEN" | "SLOW" | "RESTRICTED" | "CLOSED";
+  speed_multiplier?: number;
+  reason?: string;
+  expires_at?: string;
+}): Promise<RoadRestrictionItem> {
+  return request<RoadRestrictionItem>("/api/v1/weather/restrictions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// =============================================================================
+// Phase 6 Fleet Optimization (CVRP & VRP-TW)
+// =============================================================================
+
+export interface OptimizationVehicleItem {
+  vehicle_id: string;
+  capacity: number;
+  vehicle_name?: string;
+  start_lat?: number;
+  start_lon?: number;
+}
+
+export interface OptimizationDeliveryItem {
+  delivery_id: string;
+  location_id?: string;
+  latitude: number;
+  longitude: number;
+  demand: number;
+  time_window_start_minutes?: number;
+  time_window_end_minutes?: number;
+  service_duration_minutes?: number;
+  priority?: string;
+}
+
+export interface OptimizationRequestPayload {
+  depot_location_id?: string;
+  depot_lat: number;
+  depot_lon: number;
+  problem_type?: "CVRP" | "VRPTW";
+  profile?: string;
+  vehicles: OptimizationVehicleItem[];
+  deliveries: OptimizationDeliveryItem[];
+}
+
+export interface OptimizationStopItem {
+  sequence: number;
+  is_depot: boolean;
+  delivery_id?: string | null;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  arrival_time_minutes: number;
+  departure_time_minutes: number;
+  waiting_time_minutes?: number;
+  load_after_stop: number;
+  time_window?: number[];
+  status: string;
+}
+
+export interface OptimizationRouteItem {
+  vehicle_id: string;
+  vehicle_name: string;
+  total_distance_km: number;
+  total_duration_minutes: number;
+  total_cost: number;
+  total_risk: number;
+  capacity: number;
+  peak_load: number;
+  capacity_utilization_pct: number;
+  stops: OptimizationStopItem[];
+  geometry?: {
+    type: "LineString";
+    coordinates: [number, number][];
+  };
+}
+
+export interface UnservedDeliveryItem {
+  delivery_id: string;
+  reason: string;
+  constraint: string;
+}
+
+export interface OptimizationResult {
+  optimization_id: string;
+  problem_type: string;
+  profile: string;
+  status: string;
+  vehicles_used: number;
+  total_distance_km: number;
+  total_duration_minutes: number;
+  total_cost: number;
+  total_risk: number;
+  total_deliveries: number;
+  served_deliveries_count: number;
+  unserved_deliveries: UnservedDeliveryItem[];
+  routes: OptimizationRouteItem[];
+  created_at: string;
+}
+
+export interface OptimizationComparisonResult {
+  depot_lat: number;
+  depot_lon: number;
+  profiles: Record<string, OptimizationResult>;
+}
+
+export interface OptimizationHealth {
+  status: string;
+  ortools_available: boolean;
+  ortools_version: string;
+  supported_problem_types: string[];
+}
+
+export async function optimizeCVRP(payload: OptimizationRequestPayload): Promise<OptimizationResult> {
+  return request<OptimizationResult>("/api/v1/optimization/cvrp", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function optimizeVRPTW(payload: OptimizationRequestPayload): Promise<OptimizationResult> {
+  return request<OptimizationResult>("/api/v1/optimization/vrptw", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function compareOptimizationProfiles(payload: OptimizationRequestPayload): Promise<OptimizationComparisonResult> {
+  return request<OptimizationComparisonResult>("/api/v1/optimization/compare", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getOptimizationHealth(): Promise<OptimizationHealth> {
+  return request<OptimizationHealth>("/api/v1/optimization/health", { method: "GET" });
+}
+
+export async function getOptimizationRun(runId: string): Promise<OptimizationResult> {
+  return request<OptimizationResult>(`/api/v1/optimization/${runId}`, { method: "GET" });
+}
+
+// =============================================================================
+// Phase 6 Dispatch & Re-Optimization
+// =============================================================================
+
+export interface DispatchState {
+  organization_id: string;
+  active_vehicles_count: number;
+  active_deliveries_count: number;
+  active_hazards_count: number;
+  active_road_restrictions_count: number;
+  last_optimization?: OptimizationResult | null;
+  timestamp: string;
+}
+
+export interface ReoptimizationTriggerPayload {
+  trigger_type: "VEHICLE_BREAKDOWN" | "ROAD_CLOSURE" | "MAJOR_HAZARD" | "DELIVERY_CANCELLATION" | "NEW_DELIVERY" | "SIGNIFICANT_DELAY";
+  depot_location_id?: string;
+  affected_vehicle_id?: string;
+  affected_road_edge_id?: string;
+  affected_delivery_id?: string;
+  reason: string;
+  profile?: string;
+}
+
+export interface ReoptimizationResult {
+  trigger_type: string;
+  reoptimization_performed: boolean;
+  message: string;
+  affected_vehicle_id?: string | null;
+  affected_road_edge_id?: string | null;
+  updated_optimization?: OptimizationResult | null;
+  timestamp: string;
+}
+
+export async function getDispatchState(): Promise<DispatchState> {
+  return request<DispatchState>("/api/v1/dispatch/state", { method: "GET" });
+}
+
+export async function triggerReoptimization(payload: ReoptimizationTriggerPayload): Promise<ReoptimizationResult> {
+  return request<ReoptimizationResult>("/api/v1/dispatch/reoptimize", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getDispatchRoutes(): Promise<OptimizationRouteItem[]> {
+  return request<OptimizationRouteItem[]>("/api/v1/dispatch/routes", { method: "GET" });
+}
+
+
 

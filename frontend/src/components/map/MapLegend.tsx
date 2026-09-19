@@ -111,6 +111,69 @@ export default function MapLegend({ isOpen = true, onClose }: MapLegendProps) {
         </div>
       </div>
 
+      {/* VRP Multi-Vehicle Dispatch Routes */}
+      <div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+          VRP Multi-Vehicle Routes
+        </span>
+        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-4 rounded-full bg-cyan-400 inline-block" />
+            <span>Route 1</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-4 rounded-full bg-purple-400 inline-block" />
+            <span>Route 2</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-4 rounded-full bg-emerald-400 inline-block" />
+            <span>Route 3</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-4 rounded-full bg-amber-400 inline-block" />
+            <span>Route 4</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Telemetry Freshness */}
+      <div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+          Vehicle Telemetry Freshness
+        </span>
+        <div className="flex items-center justify-between text-[10px] text-slate-300">
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+            <span>LIVE (&lt;5m)</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400 inline-block" />
+            <span>STALE (5-60m)</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-slate-500 inline-block" />
+            <span>OFFLINE</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Dynamic Road Restrictions */}
+      <div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+          Dynamic Road Restrictions
+        </span>
+        <div className="space-y-1 text-[11px]">
+          <div className="flex items-center gap-2">
+            <span className="h-0.5 w-5 border-t-2 border-dashed border-red-500 inline-block" />
+            <span className="text-red-400 font-medium">CLOSED (Impassable)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-0.5 w-5 border-t-2 border-dashed border-amber-400 inline-block" />
+            <span className="text-amber-400 font-medium">SLOW (Speed Reduced)</span>
+          </div>
+        </div>
+      </div>
+
       {/* Modeled Risk Overlay */}
       <div className="pt-2 border-t border-slate-800">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
@@ -131,7 +194,7 @@ export default function MapLegend({ isOpen = true, onClose }: MapLegendProps) {
           </span>
         </div>
         <p className="text-[9px] text-slate-500 italic mt-1 leading-tight">
-          * Modeled routing optimization penalty. Not a live sensor or official disaster alert.
+          * Modeled heuristic risk &amp; simulated telemetry. Ground truth verification required before dispatch.
         </p>
       </div>
     </div>

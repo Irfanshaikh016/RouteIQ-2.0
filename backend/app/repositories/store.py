@@ -27,6 +27,13 @@ class DataStore:
         self.road_nodes: Dict[str, Dict[str, Any]] = {}
         self.osm_node_map: Dict[int, str] = {}
         self.road_edges: Dict[str, Dict[str, Any]] = {}
+        # Phase 6 Telemetry, Weather, Hazards, Road Restrictions & Optimization
+        self.vehicle_telemetry: Dict[str, Dict[str, Any]] = {}
+        self.latest_vehicle_telemetry: Dict[str, Dict[str, Any]] = {}
+        self.weather_observations: List[Dict[str, Any]] = []
+        self.hazard_events: Dict[str, Dict[str, Any]] = {}
+        self.road_restrictions: Dict[str, Dict[str, Any]] = {}
+        self.optimization_runs: Dict[str, Dict[str, Any]] = {}
 
     def clear(self):
         """Clears all in-memory entities. Useful for test isolation."""
@@ -38,6 +45,12 @@ class DataStore:
         self.road_nodes.clear()
         self.osm_node_map.clear()
         self.road_edges.clear()
+        self.vehicle_telemetry.clear()
+        self.latest_vehicle_telemetry.clear()
+        self.weather_observations.clear()
+        self.hazard_events.clear()
+        self.road_restrictions.clear()
+        self.optimization_runs.clear()
 
     # --------------------------------------------------------------------------
     # Organizations
@@ -601,6 +614,231 @@ class DataStore:
 
     def get_all_road_edges(self) -> List[Dict[str, Any]]:
         return list(self.road_edges.values())
+
+    # --------------------------------------------------------------------------
+    # Phase 6: Vehicle Telemetry
+    # --------------------------------------------------------------------------
+    def record_telemetry(
+        self,
+        organization_id: str,
+        vehicle_id: str,
+        timestamp: datetime,
+        latitude: float,
+        longitude: float,
+        speed: float,
+        heading: Optional[float] = None,
+        ignition_status: bool = True,
+        battery_level: Optional[float] = None,
+        accuracy: Optional[float] = None,
+        source: str = "SIMULATED_TEST",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        rec_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        record = {
+            "id": rec_id,
+            "organization_id": organization_id,
+            "vehicle_id": vehicle_id,
+            "timestamp": timestamp,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "speed": float(speed),
+            "heading": float(heading) if heading is not None else None,
+            "ignition_status": ignition_status,
+            "battery_level": float(battery_level) if battery_level is not None else None,
+            "accuracy": float(accuracy) if accuracy is not None else None,
+            "source": source,
+            "metadata": metadata or {},
+            "created_at": now,
+        }
+        self.vehicle_telemetry[rec_id] = record
+        # Cache as latest for quick fleet lookup
+        prev = self.latest_vehicle_telemetry.get(vehicle_id)
+        if prev is None or timestamp >= prev["timestamp"]:
+            self.latest_vehicle_telemetry[vehicle_id] = record
+        return record
+
+    def get_latest_telemetry(self, organization_id: str, vehicle_id: str) -> Optional[Dict[str, Any]]:
+        veh = self.vehicles.get(vehicle_id)
+        if not veh or veh.get("organization_id") != organization_id:
+            return None
+        rec = self.latest_vehicle_telemetry.get(vehicle_id)
+        if rec and rec.get("organization_id") == organization_id:
+            return rec
+        return None
+
+    def get_fleet_telemetry(self, organization_id: str) -> List[Dict[str, Any]]:
+        org_vehicles = [v["id"] for v in self.vehicles.values() if v.get("organization_id") == organization_id]
+        records = []
+        for vid in org_vehicles:
+            rec = self.latest_vehicle_telemetry.get(vid)
+            if rec and rec.get("organization_id") == organization_id:
+                records.append(rec)
+        return records
+
+    # --------------------------------------------------------------------------
+    # Phase 6: Weather & Hazard Events
+    # --------------------------------------------------------------------------
+    def record_weather_observation(
+        self,
+        latitude: float,
+        longitude: float,
+        rainfall_mm: float = 0.0,
+        temperature_c: Optional[float] = None,
+        wind_speed_kmh: Optional[float] = None,
+        visibility_km: Optional[float] = None,
+        soil_moisture_pct: Optional[float] = None,
+        source: str = "STATIC_PROVIDER",
+        observed_at: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        now = observed_at or datetime.now(timezone.utc)
+        obs_id = str(uuid.uuid4())
+        obs = {
+            "id": obs_id,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "rainfall_mm": float(rainfall_mm),
+            "temperature_c": float(temperature_c) if temperature_c is not None else None,
+            "wind_speed_kmh": float(wind_speed_kmh) if wind_speed_kmh is not None else None,
+            "visibility_km": float(visibility_km) if visibility_km is not None else None,
+            "soil_moisture_pct": float(soil_moisture_pct) if soil_moisture_pct is not None else None,
+            "source": source,
+            "observed_at": now,
+            "created_at": datetime.now(timezone.utc),
+        }
+        self.weather_observations.append(obs)
+        return obs
+
+    def create_hazard_event(
+        self,
+        hazard_type: str,
+        severity: float,
+        latitude: float,
+        longitude: float,
+        radius_meters: float = 1000.0,
+        description: Optional[str] = None,
+        source: str = "MODELED_HEURISTIC",
+        confidence: float = 1.0,
+        starts_at: Optional[datetime] = None,
+        expires_at: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        hid = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        h = {
+            "id": hid,
+            "hazard_type": hazard_type,
+            "severity": float(severity),
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "radius_meters": float(radius_meters),
+            "description": description or f"{hazard_type.capitalize()} alert",
+            "source": source,
+            "confidence": float(confidence),
+            "starts_at": starts_at or now,
+            "expires_at": expires_at or now,
+            "created_at": now,
+        }
+        self.hazard_events[hid] = h
+        return h
+
+    def get_active_hazards(self, current_time: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        now = current_time or datetime.now(timezone.utc)
+        active = []
+        for h in self.hazard_events.values():
+            if h["starts_at"] <= now <= h["expires_at"]:
+                active.append(h)
+        return active
+
+    # --------------------------------------------------------------------------
+    # Phase 6: Road Restrictions (Shared infrastructure state)
+    # --------------------------------------------------------------------------
+    def set_road_restriction(
+        self,
+        road_edge_id: str,
+        status: str = "OPEN",
+        speed_multiplier: float = 1.0,
+        reason: Optional[str] = None,
+        road_name: Optional[str] = None,
+        starts_at: Optional[datetime] = None,
+        expires_at: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        res_id = str(uuid.uuid4())
+        restriction = {
+            "id": res_id,
+            "road_edge_id": road_edge_id,
+            "road_name": road_name or "Highway",
+            "status": status.upper(),
+            "speed_multiplier": float(speed_multiplier),
+            "reason": reason or "Operational restriction",
+            "starts_at": starts_at or now,
+            "expires_at": expires_at,
+            "created_at": now,
+        }
+        self.road_restrictions[road_edge_id] = restriction
+        return restriction
+
+    def get_road_restrictions(self) -> List[Dict[str, Any]]:
+        return list(self.road_restrictions.values())
+
+    def get_road_restriction_for_edge(self, edge_id: str) -> Optional[Dict[str, Any]]:
+        return self.road_restrictions.get(edge_id)
+
+    # --------------------------------------------------------------------------
+    # Phase 6: Optimization Runs
+    # --------------------------------------------------------------------------
+    def create_optimization_run(
+        self,
+        organization_id: str,
+        problem_type: str,
+        profile: str,
+        depot_location_id: str,
+        vehicle_ids: List[str],
+        delivery_ids: List[str],
+        status: str,
+        total_distance_km: float,
+        total_duration_minutes: float,
+        total_cost: float,
+        total_risk: float,
+        vehicles_used: int,
+        served_deliveries_count: int,
+        unserved_deliveries: List[Dict[str, Any]],
+        routes_payload: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        run_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        run = {
+            "id": run_id,
+            "organization_id": organization_id,
+            "problem_type": problem_type,
+            "profile": profile,
+            "depot_location_id": depot_location_id,
+            "vehicle_ids": vehicle_ids,
+            "delivery_ids": delivery_ids,
+            "status": status,
+            "total_distance_km": float(total_distance_km),
+            "total_duration_minutes": float(total_duration_minutes),
+            "total_cost": float(total_cost),
+            "total_risk": float(total_risk),
+            "vehicles_used": int(vehicles_used),
+            "served_deliveries_count": int(served_deliveries_count),
+            "unserved_deliveries": unserved_deliveries,
+            "routes_payload": routes_payload,
+            "created_at": now,
+        }
+        self.optimization_runs[run_id] = run
+        return run
+
+    def get_optimization_run(self, organization_id: str, run_id: str) -> Optional[Dict[str, Any]]:
+        run = self.optimization_runs.get(run_id)
+        if run and run.get("organization_id") == organization_id:
+            return run
+        return None
+
+    def list_optimization_runs(self, organization_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        runs = [r for r in self.optimization_runs.values() if r.get("organization_id") == organization_id]
+        runs.sort(key=lambda x: x["created_at"], reverse=True)
+        return runs[:limit]
 
 
 # Global singleton instance

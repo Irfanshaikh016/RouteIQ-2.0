@@ -81,6 +81,19 @@ graph TD
 - [x] **Tenant-Isolated Asset Mapping**: Vehicles, locations, and delivery consignments strictly isolated to the authenticated organization.
 - [x] **Automated Test Suite**: 47/47 backend tests passing (including full GIS operations console integration suite).
 
+## 🚚 Phase 6 Live Telemetry, Dynamic Weather & OR-Tools Fleet Optimization (Completed)
+- [x] **Live Vehicle Telemetry Subsystem**: REST (`POST /api/v1/telemetry/ingest`) and WebSocket (`/ws`) GPS ingestion with deterministic freshness classification (`LIVE` < 5m, `STALE` 5–60m, `OFFLINE` > 60m).
+- [x] **Dynamic Weather & Hazard Intelligence**: Weather observations and active hazard events (`LANDSLIDE`, `FLOODING`, `ROAD_DAMAGE`, `MONSOON_SURGE`) with dynamic road restrictions (`OPEN`, `SLOW`, `RESTRICTED`, `CLOSED`).
+- [x] **Dynamic Cost Modeling Without Graph Mutation**: Ephemeral impedance overrides (`calculate_dynamic_edge_cost`) preserving thread safety and NetworkX graph immutability.
+- [x] **Google OR-Tools Fleet Optimization**:
+  - Capacitated Vehicle Routing Problem (**CVRP**) enforcing vehicle payload capacities.
+  - Vehicle Routing Problem with Time Windows (**VRP-TW**) enforcing delivery service time windows and dwell times.
+  - Multi-profile fleet comparison (`fastest`, `safest`, `balanced`) without ranking bias.
+  - Infeasibility diagnostic engine (`DELIVERY_EXCEEDS_MAX_CAPACITY`, `INSUFFICIENT_CAPACITY`, `NO_FEASIBLE_TIME_WINDOW`).
+- [x] **Dynamic Dispatch & Re-Optimization Engine**: Disruption handlers (`VEHICLE_BREAKDOWN`, `ROAD_CLOSURE`, `DELIVERY_CANCELLATION`) with a 10-second debounce window.
+- [x] **Operations Console Dispatch Integration**: Next.js 16 interactive **Fleet Dispatch** tab, vehicle telemetry drawer, optimization metrics cards, multi-vehicle Leaflet route color coding, stop sequence markers, live freshness halos, and road closure overlays.
+- [x] **Automated Test Suite**: 72/72 backend tests passing (100% pass rate, 25 new Phase 6 tests + 47 baseline tests).
+
 ---
 
 ## 📁 Repository Structure
@@ -90,26 +103,37 @@ RouteIQ-2.0/
 ├── .planning/               # GSD roadmaps, requirements, and phase plans
 ├── backend/                 # FastAPI Python backend service
 │   ├── app/
-│   │   ├── api/v1/          # Versioned API endpoints (auth, logistics, road-network, routing)
+│   │   ├── api/v1/          # Versioned API endpoints (auth, logistics, road-network, routing, telemetry, weather, optimization, dispatch)
 │   │   ├── core/            # Pydantic Settings, JWT security & dependencies
 │   │   ├── db/              # Modular database session & health checks
+│   │   ├── dispatch/        # Dispatch state management, re-optimization engine, disruption handlers
 │   │   ├── graph/           # NetworkX graph manager, OSM parser, corridors, validation
+│   │   ├── optimization/    # Google OR-Tools solver, CVRP, VRP-TW, cost matrix builder, diagnostics
 │   │   ├── repositories/    # Multi-tenant data store & road network repository
 │   │   ├── routing/         # Multi-objective routing engine, profiles, cost & risk models
 │   │   ├── schemas/         # Pydantic validation schemas
+│   │   ├── telemetry/       # Live GPS ingestion, freshness classification, state caching
+│   │   ├── weather/         # Weather observation, hazard lifecycle, dynamic road restrictions
 │   │   └── main.py          # FastAPI application entrypoint
-│   ├── tests/               # Pytest automated test suite (47/47 passing)
+│   ├── tests/               # Pytest automated test suite (72/72 passing)
 │   │   ├── fixtures/        # Sample NER OSM XML test fixture
-│   │   └── test_gis_integration.py # Phase 5 GIS integration tests
-│   ├── requirements.txt     # Backend dependencies
+│   │   ├── test_cvrp.py     # CVRP solver & capacity constraints
+│   │   ├── test_vrptw.py    # VRP-TW solver & time windows
+│   │   ├── test_dynamic_routing.py # Dynamic road closure & hazard impedance tests
+│   │   ├── test_telemetry.py # Ingestion & freshness calculation tests
+│   │   ├── test_weather_hazard.py # Weather & hazard lifecycle tests
+│   │   ├── test_reoptimization.py # Disruption triggers & debounce tests
+│   │   └── test_security_phase6.py # Multi-tenant isolation for telemetry & optimization
+│   ├── requirements.txt     # Backend dependencies (including ortools>=9.8.0)
 │   └── .env.example         # Backend environment template
 ├── database/                # Database schemas and migrations
-│   ├── migrations/          # Versioned SQL migrations (001, 002, 003)
+│   ├── migrations/          # Versioned SQL migrations (001, 002, 003, 004)
 │   ├── migrate.py           # Database migration runner script
 │   └── schema.sql           # Canonical PostgreSQL / PostGIS schema
 ├── docs/                    # Complete system documentation suite
 ├── frontend/                # Next.js 16 TypeScript frontend console
-│   └── src/components/map/  # Leaflet map, layers, controls, legend, inspector, modal
+│   ├── src/components/dispatch/ # DispatchPanel, OptimizationResultCard, VehicleTelemetryDrawer
+│   └── src/components/map/  # Leaflet map, multi-vehicle layers, controls, legend, inspector, modal
 ├── render.yaml              # Render cloud infrastructure blueprint
 └── README.md
 ```
@@ -169,7 +193,8 @@ cd frontend && npm run build
 | **Phase 3** | **Road Network Graph & Ingestion** | Completed | PostGIS spatial schema, 7 NER corridors, OSM ingestion engine, NetworkX graph layer. |
 | **Phase 4** | **Multi-Objective Routing Engine** | Completed | Multi-criteria cost and risk heuristics, pathfinder, 3 profiles, side-by-side comparison. |
 | **Phase 5** | **Interactive GIS Operations Console** | Completed | Leaflet cartography, 8 GIS layers, route planner, neutral compare, segment explainability. |
-| **Phase 6** | **Live Telemetry & Fleet Optimization** | Future | Real-time GPS feeds, dynamic weather sensors, OR-Tools multi-vehicle routing (CVRP). |
+| **Phase 6** | **Live Telemetry & Fleet Optimization** | Completed | Real-time GPS feeds, dynamic weather/hazards, OR-Tools multi-vehicle routing (CVRP/VRP-TW), dynamic dispatch. |
+| **Phase 7** | **Autonomous Logistics & Predictive AI** | Future | Predictive travel-time modeling, autonomous rerouting agents, multi-modal transfer hubs. |
 
 ---
 

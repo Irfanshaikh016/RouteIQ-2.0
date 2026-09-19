@@ -9,6 +9,9 @@ import RoutePlannerSidebar from "@/components/map/RoutePlannerSidebar";
 import RouteMetricsPanel from "@/components/map/RouteMetricsPanel";
 import RouteSegmentInspector from "@/components/map/RouteSegmentInspector";
 import CorridorInfoModal from "@/components/map/CorridorInfoModal";
+import DispatchPanel from "@/components/dispatch/DispatchPanel";
+import OptimizationResultCard from "@/components/dispatch/OptimizationResultCard";
+import VehicleTelemetryDrawer from "@/components/dispatch/VehicleTelemetryDrawer";
 import { LayerVisibilityState } from "@/components/map/MapControls";
 import {
   getStoredUser,
@@ -19,6 +22,9 @@ import {
   listRoadEdges,
   calculateRoute,
   compareRoutes,
+  getFleetTelemetry,
+  getActiveHazards,
+  getRoadRestrictions,
   TokenResponse,
   Vehicle,
   Location,
@@ -26,6 +32,10 @@ import {
   CorridorResponse,
   RouteResponse,
   RouteRequest,
+  VehicleStateItem,
+  RoadRestrictionItem,
+  HazardEventItem,
+  OptimizationResult,
 } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -36,6 +46,15 @@ export default function DashboardPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+
+  // Phase 6 Telemetry, Weather & Dispatch State
+  const [fleetTelemetry, setFleetTelemetry] = useState<VehicleStateItem[]>([]);
+  const [roadRestrictions, setRoadRestrictions] = useState<RoadRestrictionItem[]>([]);
+  const [activeHazards, setActiveHazards] = useState<HazardEventItem[]>([]);
+  const [activeOptimization, setActiveOptimization] = useState<OptimizationResult | null>(null);
+  const [selectedTelemetryVehicle, setSelectedTelemetryVehicle] = useState<VehicleStateItem | null>(null);
+  const [selectedRouteVehicleId, setSelectedRouteVehicleId] = useState<string | null>(null);
+  const [loadingDispatch, setLoadingDispatch] = useState(false);
 
   // Shared GIS road network data
   const [corridors, setCorridors] = useState<CorridorResponse[]>([]);
@@ -55,7 +74,7 @@ export default function DashboardPage() {
   const [selectedCorridor, setSelectedCorridor] = useState<CorridorResponse | null>(null);
 
   // UI & Layer States
-  const [activeTab, setActiveTab] = useState<"planner" | "metrics" | "inspector" | "assets">("planner");
+  const [activeTab, setActiveTab] = useState<"planner" | "metrics" | "inspector" | "dispatch" | "assets">("planner");
   const [showLegend, setShowLegend] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [loadingCompare, setLoadingCompare] = useState(false);
@@ -90,12 +109,15 @@ export default function DashboardPage() {
     const loadInitialData = async () => {
       setDataLoading(true);
       try {
-        const [vList, lList, dList, corrRes, edgeRes] = await Promise.allSettled([
+        const [vList, lList, dList, corrRes, edgeRes, telRes, hazRes, restrRes] = await Promise.allSettled([
           listVehicles(),
           listLocations(),
           listDeliveries(),
           listCorridors(),
           listRoadEdges({ limit: 80 }),
+          getFleetTelemetry(),
+          getActiveHazards(),
+          getRoadRestrictions(),
         ]);
 
         if (vList.status === "fulfilled") setVehicles(vList.value);
@@ -103,6 +125,9 @@ export default function DashboardPage() {
         if (dList.status === "fulfilled") setDeliveries(dList.value);
         if (corrRes.status === "fulfilled") setCorridors(corrRes.value.corridors || []);
         if (edgeRes.status === "fulfilled") setRoadEdges(edgeRes.value.edges || []);
+        if (telRes.status === "fulfilled") setFleetTelemetry(telRes.value.vehicles || []);
+        if (hazRes.status === "fulfilled") setActiveHazards(hazRes.value || []);
+        if (restrRes.status === "fulfilled") setRoadRestrictions(restrRes.value || []);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Failed to load dashboard data";
         setError(msg);
@@ -296,6 +321,21 @@ export default function DashboardPage() {
               >
                 <span>🔍</span>
                 <span className="truncate">Explain</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("dispatch")}
+                className={`flex-1 py-2 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  activeTab === "dispatch"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                <span>🚚</span>
+                <span className="truncate">Dispatch</span>
+                {activeOptimization && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                )}
               </button>
 
               <button
@@ -528,6 +568,47 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+
+              {/* Tab 5: Fleet Dispatch & VRP Optimization */}
+              {activeTab === "dispatch" && (
+                <div className="space-y-4">
+                  {selectedTelemetryVehicle && (
+                    <VehicleTelemetryDrawer
+                      vehicle={selectedTelemetryVehicle}
+                      activeRoute={
+                        activeOptimization?.routes.find(
+                          (r) => r.vehicle_id === selectedTelemetryVehicle.vehicle_id
+                        ) || null
+                      }
+                      onClose={() => setSelectedTelemetryVehicle(null)}
+                    />
+                  )}
+
+                  <DispatchPanel
+                    vehicles={vehicles}
+                    locations={locations}
+                    deliveries={deliveries}
+                    loading={loadingDispatch}
+                    setLoading={setLoadingDispatch}
+                    onOptimizationComplete={(optResult) => {
+                      setActiveOptimization(optResult);
+                      setLayers((prev) => ({ ...prev, fleetRoutes: true }));
+                    }}
+                  />
+
+                  {activeOptimization && (
+                    <OptimizationResultCard
+                      result={activeOptimization}
+                      selectedRouteVehicleId={selectedRouteVehicleId}
+                      onSelectRoute={(route) => {
+                        setSelectedRouteVehicleId(route.vehicle_id);
+                        const matchVeh = fleetTelemetry.find((v) => v.vehicle_id === route.vehicle_id);
+                        if (matchVeh) setSelectedTelemetryVehicle(matchVeh);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -547,6 +628,15 @@ export default function DashboardPage() {
               vehicles={vehicles}
               locations={locations}
               deliveries={deliveries}
+              fleetRoutes={activeOptimization?.routes || []}
+              fleetTelemetry={fleetTelemetry}
+              roadRestrictions={roadRestrictions}
+              onSelectVehicle={(veh) => {
+                setSelectedTelemetryVehicle(veh);
+                setSelectedRouteVehicleId(veh.vehicle_id);
+                setActiveTab("dispatch");
+              }}
+              selectedVehicleId={selectedRouteVehicleId}
               showLegend={showLegend}
               onToggleLegend={() => setShowLegend(!showLegend)}
             />

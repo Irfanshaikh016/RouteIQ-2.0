@@ -4,7 +4,17 @@ import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import MapControls, { LayerVisibilityState } from "./MapControls";
 import MapLegend from "./MapLegend";
-import { RouteResponse, RouteEdgeItem, CorridorResponse, Vehicle, Location, Delivery } from "@/lib/api";
+import {
+  RouteResponse,
+  RouteEdgeItem,
+  CorridorResponse,
+  Vehicle,
+  Location,
+  Delivery,
+  OptimizationRouteItem,
+  VehicleStateItem,
+  RoadRestrictionItem,
+} from "@/lib/api";
 
 export interface RouteIQMapProps {
   layers: LayerVisibilityState;
@@ -20,6 +30,11 @@ export interface RouteIQMapProps {
   vehicles?: Vehicle[];
   locations?: Location[];
   deliveries?: Delivery[];
+  fleetRoutes?: OptimizationRouteItem[];
+  fleetTelemetry?: VehicleStateItem[];
+  roadRestrictions?: RoadRestrictionItem[];
+  onSelectVehicle?: (veh: VehicleStateItem) => void;
+  selectedVehicleId?: string | null;
   showLegend: boolean;
   onToggleLegend: () => void;
 }
@@ -60,6 +75,11 @@ export default function RouteIQMap({
   vehicles = [],
   locations = [],
   deliveries = [],
+  fleetRoutes = [],
+  fleetTelemetry = [],
+  roadRestrictions = [],
+  onSelectVehicle,
+  selectedVehicleId,
   showLegend,
   onToggleLegend,
 }: RouteIQMapProps) {
@@ -75,6 +95,8 @@ export default function RouteIQMap({
   const locationsLayerRef = useRef<L.LayerGroup | null>(null);
   const deliveriesLayerRef = useRef<L.LayerGroup | null>(null);
   const hazardOverlayLayerRef = useRef<L.LayerGroup | null>(null);
+  const fleetRoutesLayerRef = useRef<L.LayerGroup | null>(null);
+  const roadRestrictionsLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Initialize Map
   useEffect(() => {
@@ -102,6 +124,8 @@ export default function RouteIQMap({
     alternateRoutesLayerRef.current = L.layerGroup().addTo(map);
     hazardOverlayLayerRef.current = L.layerGroup().addTo(map);
     selectedRouteLayerRef.current = L.layerGroup().addTo(map);
+    fleetRoutesLayerRef.current = L.layerGroup().addTo(map);
+    roadRestrictionsLayerRef.current = L.layerGroup().addTo(map);
     deliveriesLayerRef.current = L.layerGroup().addTo(map);
     locationsLayerRef.current = L.layerGroup().addTo(map);
     vehiclesLayerRef.current = L.layerGroup().addTo(map);
@@ -449,54 +473,206 @@ export default function RouteIQMap({
     });
   }, [layers.hazardOverlay, activeRoute]);
 
-  // 6. Render Fleet Vehicles Layer (Tenant Isolated)
+  // 6. Render VRP Multi-Vehicle Dispatch Routes Layer
+  useEffect(() => {
+    const layerGroup = fleetRoutesLayerRef.current;
+    if (!layerGroup) return;
+    layerGroup.clearLayers();
+
+    if (layers.fleetRoutes === false || !fleetRoutes || fleetRoutes.length === 0) return;
+
+    const FLEET_PALETTE = ["#06b6d4", "#a855f7", "#10b981", "#f59e0b", "#ec4899", "#3b82f6"];
+
+    fleetRoutes.forEach((route, routeIdx) => {
+      const color = FLEET_PALETTE[routeIdx % FLEET_PALETTE.length];
+      const isSelected = selectedVehicleId === route.vehicle_id;
+
+      // Draw polyline if coordinates available
+      if (route.geometry?.coordinates && route.geometry.coordinates.length > 1) {
+        const latLngs = route.geometry.coordinates.map((c) => [c[1], c[0]] as [number, number]);
+        const polyline = L.polyline(latLngs, {
+          color,
+          weight: isSelected ? 6 : 4,
+          opacity: isSelected ? 0.95 : 0.8,
+        });
+
+        polyline.bindPopup(`
+          <div class="text-xs space-y-1 p-1">
+            <div class="font-bold text-white">${route.vehicle_name}</div>
+            <div class="text-slate-300">Distance: <span class="font-mono text-cyan-400">${route.total_distance_km.toFixed(1)} km</span></div>
+            <div class="text-slate-300">Duration: <span class="font-mono text-amber-400">${Math.round(route.total_duration_minutes)} mins</span></div>
+            <div class="text-slate-300">Deliveries: <span class="font-mono text-white">${route.stops.length - 2}</span></div>
+            <div class="text-slate-300">Payload Util: <span class="font-mono text-emerald-400">${route.capacity_utilization_pct}%</span></div>
+          </div>
+        `);
+        polyline.addTo(layerGroup);
+      }
+
+      // Draw sequential stop sequence markers
+      route.stops.forEach((stop) => {
+        const isDepot = stop.is_depot;
+        const badgeText = isDepot ? (stop.sequence === 1 ? "D" : "R") : `${stop.sequence - 1}`;
+        const stopIcon = L.divIcon({
+          className: "custom-stop-icon",
+          html: `
+            <div style="background-color: ${color};" class="flex items-center justify-center h-6 w-6 rounded-full text-slate-950 font-bold text-[11px] shadow-lg border-2 border-slate-900">
+              ${badgeText}
+            </div>
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        const stopMarker = L.marker([stop.latitude, stop.longitude], { icon: stopIcon });
+        stopMarker.bindPopup(`
+          <div class="text-xs space-y-1 p-1">
+            <div class="font-bold text-white">${stop.location_name}</div>
+            <div class="text-slate-300">Sequence: #${stop.sequence}</div>
+            <div class="text-slate-300">Arrival: ${stop.arrival_time_minutes}m • Departure: ${stop.departure_time_minutes}m</div>
+            ${stop.waiting_time_minutes ? `<div class="text-amber-400">Waiting: ${stop.waiting_time_minutes}m</div>` : ""}
+            <div class="text-slate-400 text-[10px]">Load: ${stop.load_after_stop} kg</div>
+          </div>
+        `);
+        stopMarker.addTo(layerGroup);
+      });
+    });
+  }, [layers.fleetRoutes, fleetRoutes, selectedVehicleId]);
+
+  // 7. Render Road Restrictions Layer (CLOSED / SLOW)
+  useEffect(() => {
+    const layerGroup = roadRestrictionsLayerRef.current;
+    if (!layerGroup) return;
+    layerGroup.clearLayers();
+
+    if (layers.roadRestrictions === false || !roadRestrictions || roadRestrictions.length === 0) return;
+
+    roadRestrictions.forEach((restr) => {
+      const isClosed = restr.status === "CLOSED";
+      const color = isClosed ? "#ef4444" : "#f59e0b";
+      const matchingEdge = roadEdges.find((e) => e.id === restr.road_edge_id);
+
+      if (matchingEdge && matchingEdge.geometry?.coordinates) {
+        const latLngs = matchingEdge.geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+        const restrLine = L.polyline(latLngs, {
+          color,
+          weight: 6,
+          dashArray: "6, 8",
+          opacity: 0.9,
+        });
+
+        restrLine.bindPopup(`
+          <div class="text-xs space-y-1 p-1">
+            <div class="font-bold" style="color: ${color}">STATUS: ${restr.status}</div>
+            <div class="text-white font-medium">${restr.road_name || restr.road_edge_id}</div>
+            <div class="text-slate-300">${restr.reason || "Active infrastructure restriction"}</div>
+            ${!isClosed ? `<div class="text-amber-400">Speed multiplier: ${restr.speed_multiplier}x</div>` : ""}
+          </div>
+        `);
+        restrLine.addTo(layerGroup);
+      }
+    });
+  }, [layers.roadRestrictions, roadRestrictions, roadEdges]);
+
+  // 8. Render Fleet Vehicles Layer (Live Telemetry Freshness Halos)
   useEffect(() => {
     const layerGroup = vehiclesLayerRef.current;
     if (!layerGroup) return;
     layerGroup.clearLayers();
 
-    if (!layers.vehicles || !vehicles || vehicles.length === 0) return;
+    if (!layers.vehicles) return;
 
-    // Anchor vehicles to locations or distributed points in NER
-    vehicles.forEach((veh, idx) => {
-      const baseLat = 26.1445 + (idx % 4) * 0.2 - 0.1;
-      const baseLng = 91.7362 + ((idx * 3) % 5) * 0.3 - 0.2;
+    if (fleetTelemetry && fleetTelemetry.length > 0) {
+      fleetTelemetry.forEach((veh, idx) => {
+        const tel = veh.latest_telemetry;
+        const lat = tel?.latitude ?? (26.1445 + (idx % 4) * 0.15 - 0.1);
+        const lon = tel?.longitude ?? (91.7362 + ((idx * 3) % 5) * 0.2 - 0.1);
+        const freshness = veh.freshness;
 
-      const isAvailable = veh.status === "available";
-      const iconHtml = `
-        <div class="flex items-center justify-center h-8 w-8 rounded-xl bg-slate-900 border ${
-          isAvailable ? "border-emerald-500 text-emerald-400 shadow-emerald-500/30" : "border-amber-500 text-amber-400"
-        } shadow-lg text-sm">
-          🚚
-        </div>
-      `;
+        let ringStyle = "border-slate-600";
+        let dotStyle = "bg-slate-500";
+        if (freshness === "LIVE") {
+          ringStyle = "border-emerald-400 ring-4 ring-emerald-500/30 animate-pulse";
+          dotStyle = "bg-emerald-400";
+        } else if (freshness === "STALE") {
+          ringStyle = "border-amber-400 ring-2 ring-amber-500/20";
+          dotStyle = "bg-amber-400";
+        }
 
-      const icon = L.divIcon({
-        className: "custom-div-icon",
-        html: iconHtml,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-
-      const marker = L.marker([baseLat, baseLng], { icon });
-      marker.bindPopup(`
-        <div class="text-xs space-y-1.5 p-1">
-          <div class="flex items-center justify-between gap-2">
-            <span class="font-bold text-white font-mono">${veh.registration_number || veh.vehicle_name}</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
-              isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
-            }">${veh.status}</span>
+        const iconHtml = `
+          <div class="relative flex items-center justify-center h-9 w-9 rounded-xl bg-slate-900 border-2 ${ringStyle} text-base shadow-xl cursor-pointer">
+            🚚
+            <span class="absolute -top-1 -right-1 h-3 w-3 rounded-full ${dotStyle} border-2 border-slate-950" />
           </div>
-          <div class="text-slate-300">Name: <span class="text-white">${veh.vehicle_name}</span></div>
-          <div class="text-slate-300">Type: <span class="capitalize text-indigo-300">${veh.vehicle_type}</span></div>
-          <div class="text-slate-300">Capacity: <span class="font-mono text-white">${veh.capacity} ${veh.capacity_unit}</span></div>
-          <div class="text-[10px] text-slate-500 border-t border-slate-800 pt-1">Scoped to Organization</div>
-        </div>
-      `);
+        `;
 
-      marker.addTo(layerGroup);
-    });
-  }, [layers.vehicles, vehicles]);
+        const icon = L.divIcon({
+          className: "custom-telemetry-icon",
+          html: iconHtml,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+        });
+
+        const marker = L.marker([lat, lon], { icon });
+        marker.on("click", () => {
+          onSelectVehicle?.(veh);
+        });
+
+        marker.bindPopup(`
+          <div class="text-xs space-y-1.5 p-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold text-white font-mono">${veh.registration_number || veh.vehicle_name}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                freshness === "LIVE"
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : freshness === "STALE"
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "bg-slate-800 text-slate-400"
+              }">${freshness}</span>
+            </div>
+            <div class="text-slate-300">Name: <span class="text-white">${veh.vehicle_name}</span></div>
+            <div class="text-slate-300">Speed: <span class="font-mono text-cyan-400">${tel?.speed !== undefined ? tel.speed.toFixed(1) + " km/h" : "--"}</span></div>
+            <div class="text-slate-300">Battery: <span class="font-mono text-emerald-400">${tel?.battery_level !== undefined ? tel.battery_level + "%" : "--"}</span></div>
+            <div class="text-[10px] text-indigo-400 border-t border-slate-800 pt-1">Click to view telemetry drawer</div>
+          </div>
+        `);
+
+        marker.addTo(layerGroup);
+      });
+    } else if (vehicles && vehicles.length > 0) {
+      vehicles.forEach((veh, idx) => {
+        const baseLat = 26.1445 + (idx % 4) * 0.2 - 0.1;
+        const baseLng = 91.7362 + ((idx * 3) % 5) * 0.3 - 0.2;
+        const isAvailable = veh.status === "available";
+        const iconHtml = `
+          <div class="flex items-center justify-center h-8 w-8 rounded-xl bg-slate-900 border ${
+            isAvailable ? "border-emerald-500 text-emerald-400 shadow-emerald-500/30" : "border-amber-500 text-amber-400"
+          } shadow-lg text-sm">
+            🚚
+          </div>
+        `;
+        const icon = L.divIcon({
+          className: "custom-div-icon",
+          html: iconHtml,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        });
+        const marker = L.marker([baseLat, baseLng], { icon });
+        marker.bindPopup(`
+          <div class="text-xs space-y-1.5 p-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold text-white font-mono">${veh.registration_number || veh.vehicle_name}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
+              }">${veh.status}</span>
+            </div>
+            <div class="text-slate-300">Name: <span class="text-white">${veh.vehicle_name}</span></div>
+            <div class="text-slate-300">Capacity: <span class="font-mono text-white">${veh.capacity} ${veh.capacity_unit}</span></div>
+          </div>
+        `);
+        marker.addTo(layerGroup);
+      });
+    }
+  }, [layers.vehicles, vehicles, fleetTelemetry, onSelectVehicle]);
 
   // 7. Render Depots and Facilities Layer (Tenant Isolated)
   useEffect(() => {

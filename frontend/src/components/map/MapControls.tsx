@@ -11,6 +11,8 @@ export interface LayerVisibilityState {
   locations: boolean;
   deliveries: boolean;
   hazardOverlay: boolean;
+  fleetRoutes?: boolean;
+  roadRestrictions?: boolean;
 }
 
 interface MapControlsProps {
@@ -39,7 +41,9 @@ export default function MapControls({
     { key: "corridors", label: "NER Strategic Corridors", icon: "🏔️", color: "text-amber-400" },
     { key: "selectedRoute", label: "Selected Route", icon: "⚡", color: "text-cyan-400" },
     { key: "alternateRoutes", label: "Alternate Profiles", icon: "🔀", color: "text-purple-400" },
-    { key: "vehicles", label: "Fleet Vehicles", icon: "🚚", color: "text-emerald-400" },
+    { key: "fleetRoutes", label: "VRP Multi-Fleet Routes", icon: "🎨", color: "text-teal-400" },
+    { key: "roadRestrictions", label: "Road Closures & Slows", icon: "🚧", color: "text-red-400" },
+    { key: "vehicles", label: "Fleet Vehicles (Telemetry)", icon: "🚚", color: "text-emerald-400" },
     { key: "locations", label: "Depots & Facilities", icon: "📍", color: "text-indigo-400" },
     { key: "deliveries", label: "Consignment Orders", icon: "📦", color: "text-rose-400" },
     { key: "hazardOverlay", label: "Modeled Risk Overlay", icon: "⚠️", color: "text-yellow-400" },

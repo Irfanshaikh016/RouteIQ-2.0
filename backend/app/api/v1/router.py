@@ -11,6 +11,10 @@ from app.api.v1.endpoints import (
     organizations,
     road_network,
     routing,
+    telemetry,
+    weather,
+    optimization,
+    dispatch,
     users,
     vehicles,
 )
@@ -33,5 +37,11 @@ api_router.include_router(road_network.router, prefix="/road-network", tags=["Ro
 
 # Phase 4 — Multi-Objective Routing Optimization
 api_router.include_router(routing.router, prefix="/routing", tags=["Routing"])
+
+# Phase 6 — Live Telemetry, Weather, Fleet Optimization & Dispatch
+api_router.include_router(telemetry.router, prefix="/telemetry", tags=["Telemetry"])
+api_router.include_router(weather.router, prefix="/weather", tags=["Weather & Hazards"])
+api_router.include_router(optimization.router, prefix="/optimization", tags=["Fleet Optimization"])
+api_router.include_router(dispatch.router, prefix="/dispatch", tags=["Dispatch Operations"])
 
 
