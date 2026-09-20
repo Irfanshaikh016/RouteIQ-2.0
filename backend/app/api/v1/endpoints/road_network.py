@@ -216,3 +216,24 @@ async def ingest_osm_network(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"OSM Ingestion failed: {str(e)}",
         )
+
+
+@router.post("/seed", status_code=status.HTTP_200_OK)
+async def seed_road_network(
+    store: DataStore = Depends(get_store),
+    graph_manager: RoadNetworkGraphManager = Depends(get_graph_manager),
+) -> Dict[str, Any]:
+    """
+    Seeds baseline NER road network corridors and sample OSM nodes if empty or requested.
+    """
+    from app.graph.seeder import seed_road_network_if_empty
+    nodes_count = seed_road_network_if_empty(store)
+    graph_manager.invalidate_cache()
+    G = graph_manager.get_graph()
+    return {
+        "status": "success",
+        "message": f"Road network populated with {nodes_count} nodes and {G.number_of_edges()} edges.",
+        "nodes": G.number_of_nodes(),
+        "edges": G.number_of_edges(),
+    }
+

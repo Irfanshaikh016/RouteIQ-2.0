@@ -117,6 +117,14 @@ class RouteService:
         # 2. Get road graph
         G = self.graph_manager.get_graph()
         if G.number_of_nodes() == 0:
+            try:
+                from app.graph.seeder import seed_road_network_if_empty
+                seed_road_network_if_empty(self.store)
+                G = self.graph_manager.get_graph(force_rebuild=True)
+            except Exception:
+                pass
+
+        if G.number_of_nodes() == 0:
             raise GraphUnavailableError("Road network graph is empty. Please ingest road data first.")
 
         # 3. Resolve nearest origin and destination nodes

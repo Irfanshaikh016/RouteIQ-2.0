@@ -20,6 +20,11 @@ logger = logging.getLogger("routeiq.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
+    try:
+        from app.graph.seeder import seed_road_network_if_empty
+        seed_road_network_if_empty()
+    except Exception as e:
+        logger.warning(f"Initial road network seed note: {e}")
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
